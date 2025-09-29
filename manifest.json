@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "ITMO Schedule Export",
+  "description": "Fetch schedule from my.itmo.ru and export to Calendars.",
+  "version": "0.1.0",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://my.itmo.ru/*"
+  ],
+  "action": {
+    "default_title": "ITMO Schedule Export",
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://my.itmo.ru/*"
+      ],
+      "js": [
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
+
+

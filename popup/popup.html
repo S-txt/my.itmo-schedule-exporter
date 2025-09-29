@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ITMO Schedule</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>ITMO Schedule</h1>
+      <div id="notOnMyItmo" class="notice" style="display:none">
+        Please open my.itmo.ru in a tab and try again.
+      </div>
+      <div class="buttons">
+        <button id="btnGetTokens">Get tokens</button>
+        <button id="btnGetSchedule">Get schedule</button>
+        <button id="btnGenerateIcal">Generate iCal</button>
+        <button id="btnDownloadIcal">Download iCal</button>
+      </div>
+      <pre id="status" class="status"></pre>
+    </div>
+    <script src="./popup.js" defer></script>
+  </body>
+  </html>
+
+

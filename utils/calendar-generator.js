@@ -19,29 +19,42 @@ export function scheduleToICS(scheduleJson) {
   const nowIso = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 
   const days = Array.isArray(scheduleJson?.data) ? scheduleJson.data : [];
-  console.log(days);
+  const groups = new Map(); // key -> { subject, type, start, end, occurrences: [{date, lesson}], sample }
   for (const day of days) {
-    const date = day?.date; // YYYY-MM-DD
-    
+    const date = day?.date;
     const lessons = Array.isArray(day?.lessons) ? day.lessons : [];
     for (const lesson of lessons) {
-      const uid = lesson.pair_id;
-      const dtstart = toIsoLocal(date, lesson.time_start);
-      const dtend = toIsoLocal(date, lesson.time_end);
-      const subject = lesson.subject || lesson.subject_id;
-      const typeSuffix = (lesson.type || lesson.work_type) ? `${String(lesson.type || lesson.work_type).trim()}` : "";
-      const summary = escapeText(`${subject} — ${typeSuffix}`);
-      const descriptionText = [
-        (lesson.type || lesson.work_type) ? `Тип: ${lesson.type || lesson.work_type}` : "",
-        lesson.teacher_name ? `Преподаватель: ${lesson.teacher_name}` : "",
-        lesson.group ? `Группа: ${lesson.group}` : "",
-        lesson.format ? `Формат: ${lesson.format}` : "",
-        lesson.note ? `Заметка: ${lesson.note}` : "",
-      ].filter(Boolean).join("\n");
-      const description = escapeText(descriptionText);
-      const location = escapeText(lesson.building || lesson.room || lesson.format || "");
-      const { category, colorHex } = mapLessonTypeToCategoryAndColor(lesson.type || lesson.work_type);
+      const subject = firstNonEmpty([lesson.subject, lesson.subject_id, lesson.subject_name, lesson.title, lesson.name, lesson.discipline]) || "Lesson";
+      const type = (lesson.type || lesson.work_type) || "";
+      const start = String(lesson.time_start || "").trim();
+      const end = String(lesson.time_end || "").trim();
+      const key = `${subject}__${type}__${start}__${end}`;
+      if (!groups.has(key)) groups.set(key, { subject, type, start, end, occurrences: [], sample: lesson });
+      groups.get(key).occurrences.push({ date, lesson });
+    }
+  }
 
+  for (const [, group] of groups) {
+    const { subject, type, start, end, occurrences, sample } = group;
+    occurrences.sort((a, b) => a.date.localeCompare(b.date));
+    const typeSuffix = type ? ` — ${String(type).trim()}` : "";
+    const summary = escapeText(`${subject}${typeSuffix}`);
+    const descriptionText = [
+      type ? `Тип: ${type}` : "",
+      sample.teacher_name ? `Преподаватель: ${sample.teacher_name}` : "",
+      sample.group ? `Группа: ${sample.group}` : "",
+      sample.format ? `Формат: ${sample.format}` : "",
+      sample.note ? `Заметка: ${sample.note}` : "",
+    ].filter(Boolean).join("\n");
+    const description = escapeText(descriptionText);
+    const location = escapeText(sample.building || sample.room || sample.format || "");
+    const { category, colorHex } = mapLessonTypeToCategoryAndColor(type);
+
+    if (occurrences.length <= 1) {
+      const { date } = occurrences[0];
+      const uid = `${(sample.pair_id || cryptoRandom())}@itmo.ru`;
+      const dtstart = toIsoLocal(date, start);
+      const dtend = toIsoLocal(date, end);
       lines.push("BEGIN:VEVENT");
       lines.push(`UID:${uid}`);
       lines.push(`DTSTAMP:${nowIso}`);
@@ -51,9 +64,38 @@ export function scheduleToICS(scheduleJson) {
       lines.push(`DESCRIPTION:${description}`);
       if (location) lines.push(`LOCATION:${location}`);
       if (category) lines.push(`CATEGORIES:${escapeText(category)},ITMO`);
-      if (colorHex) lines.push(`COLOR:${colorHex}`); // RFC 7986, may be ignored by some clients
+      if (colorHex) lines.push(`COLOR:${colorHex}`);
       lines.push("END:VEVENT");
+      continue;
     }
+
+    const firstDate = occurrences[0].date;
+    const lastDate = occurrences[occurrences.length - 1].date;
+    const bydaySet = new Set(occurrences.map(o => weekdayToken(o.date)));
+    const byday = Array.from(bydaySet).sort().join(",");
+    const dtstart0 = toIsoLocal(firstDate, start);
+    const dtend0 = toIsoLocal(firstDate, end);
+    const until = toIsoLocal(lastDate, end).replace(/^(DTSTART:|DTEND:)/, "");
+    const expectedDates = enumerateExpectedDates(firstDate, lastDate, bydaySet);
+    const actualSet = new Set(occurrences.map(o => o.date));
+    const missingDates = expectedDates.filter(d => !actualSet.has(d));
+    const uid = `recurr-${hashKey(`${subject}|${type}|${start}|${end}`)}@itmo.ru`;
+    lines.push("BEGIN:VEVENT");
+    lines.push(`UID:${uid}`);
+    lines.push(`DTSTAMP:${nowIso}`);
+    lines.push(`DTSTART:${dtstart0}`);
+    lines.push(`DTEND:${dtend0}`);
+    lines.push(`SUMMARY:${summary}`);
+    lines.push(`DESCRIPTION:${description}`);
+    if (location) lines.push(`LOCATION:${location}`);
+    if (category) lines.push(`CATEGORIES:${escapeText(category)},ITMO`);
+    if (colorHex) lines.push(`COLOR:${colorHex}`);
+    lines.push(`RRULE:FREQ=WEEKLY;BYDAY=${byday};UNTIL=${until}`);
+    for (const d of missingDates) {
+      const ex = toIsoLocal(d, start);
+      lines.push(`EXDATE:${ex}`);
+    }
+    lines.push("END:VEVENT");
   }
 
   lines.push("END:VCALENDAR");
@@ -68,6 +110,47 @@ function cryptoRandom() {
   } catch (_e) {
     return String(Math.floor(Math.random() * 1e12));
   }
+}
+
+function firstNonEmpty(values) {
+  for (const v of values) {
+    if (v != null) {
+      const s = String(v).trim();
+      if (s) return s;
+    }
+  }
+  return "";
+}
+
+function weekdayToken(dateStr) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const day = d.getUTCDay(); // 0-6, Sunday=0
+  const map = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+  return map[day];
+}
+
+function enumerateExpectedDates(startDateStr, endDateStr, bydaySet) {
+  const start = new Date(startDateStr + "T00:00:00Z");
+  const end = new Date(endDateStr + "T00:00:00Z");
+  const result = [];
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    const token = ["SU","MO","TU","WE","TH","FR","SA"][d.getUTCDay()];
+    if (bydaySet.has(token)) {
+      const yyyy = d.getUTCFullYear();
+      const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(d.getUTCDate()).padStart(2, '0');
+      result.push(`${yyyy}-${mm}-${dd}`);
+    }
+  }
+  return result;
+}
+
+function hashKey(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(16);
 }
 
 function mapLessonTypeToCategoryAndColor(typeRaw) {

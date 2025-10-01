@@ -1,6 +1,7 @@
 import { getSemesterDates } from "../utils/date-utils.js";
 import { fetchPersonalSchedule } from "../utils/api-client.js";
 import { scheduleToICS } from "../utils/calendar-generator.js";
+import { partitionScheduleByType } from "../utils/partition-utils.js";
 
 async function getActiveTabId() {
   const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -144,6 +145,23 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       return;
     }
 
+    if (request?.type === "GENERATE_ICAL_SEPARATED") {
+      try {
+        const { itmoSchedule } = await chrome.storage.local.get(["itmoSchedule"]);
+        if (!itmoSchedule) {
+          sendResponse({ ok: false, error: "Schedule is empty" });
+          return;
+        }
+        const parts = partitionScheduleByType(itmoSchedule);
+        const files = parts.map((p) => ({ name: p.filename, content: scheduleToICS(p.schedule) }));
+        await chrome.storage.local.set({ itmoIcsSeparated: files });
+        sendResponse({ ok: true, filesCount: files.length });
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err?.message || err) });
+      }
+      return;
+    }
+
     if (request?.type === "DOWNLOAD_ICAL") {
       try {
         const { itmoIcsContent } = await chrome.storage.local.get(["itmoIcsContent"]);
@@ -152,6 +170,20 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           return;
         }
         sendResponse({ ok: true, ics: itmoIcsContent });
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err?.message || err) });
+      }
+      return;
+    }
+
+    if (request?.type === "DOWNLOAD_ICAL_SEPARATED") {
+      try {
+        const { itmoIcsSeparated } = await chrome.storage.local.get(["itmoIcsSeparated"]);
+        if (!Array.isArray(itmoIcsSeparated) || itmoIcsSeparated.length === 0) {
+          sendResponse({ ok: false, error: "No separated iCal files found" });
+          return;
+        }
+        sendResponse({ ok: true, files: itmoIcsSeparated });
       } catch (err) {
         sendResponse({ ok: false, error: String(err?.message || err) });
       }

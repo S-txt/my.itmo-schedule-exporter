@@ -55,4 +55,15 @@ button.primary:disabled {
   margin: 0 0 8px 0;
 }
 
+.controls {
+  margin: 0 0 8px 0;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
 

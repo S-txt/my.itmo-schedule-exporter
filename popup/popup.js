@@ -38,6 +38,7 @@ document.addEventListener("DOMContentLoaded", initHostGate);
 
 async function downloadFlow() {
   const btn = document.getElementById("btnDownloadAll");
+  const separate = document.getElementById("chkSeparateByType").checked;
   const original = btn.textContent;
   btn.disabled = true;
   btn.textContent = "Please wait";
@@ -51,23 +52,39 @@ async function downloadFlow() {
     if (!s?.ok) throw new Error(s?.error || "Failed to fetch schedule");
 
     setStatus("Generating iCal ...");
-    const g = await sendMessage({ type: "GENERATE_ICAL" });
+    const g = await sendMessage({ type: separate ? "GENERATE_ICAL_SEPARATED" : "GENERATE_ICAL" });
     if (!g?.ok) throw new Error(g?.error || "Failed to generate iCal");
 
     setStatus("Preparing download ...");
-    const d = await sendMessage({ type: "DOWNLOAD_ICAL" });
-    if (!d?.ok) throw new Error(d?.error || "Failed to prepare download");
-
-    const blob = new Blob([d.ics], { type: "text/calendar;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "itmo-schedule.ics";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    setStatus({ ok: true, downloaded: true });
+    if (!separate) {
+      const d = await sendMessage({ type: "DOWNLOAD_ICAL" });
+      if (!d?.ok) throw new Error(d?.error || "Failed to prepare download");
+      const blob = new Blob([d.ics], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "itmo-schedule.ics";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus({ ok: true, downloaded: true });
+    } else {
+      const d = await sendMessage({ type: "DOWNLOAD_ICAL_SEPARATED" });
+      if (!d?.ok || !Array.isArray(d.files)) throw new Error(d?.error || "Failed to prepare separated files");
+      for (const file of d.files) {
+        const blob = new Blob([file.content], { type: "text/calendar;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      setStatus({ ok: true, downloaded: d.files.length });
+    }
   } catch (e) {
     setStatus({ ok: false, error: String(e?.message || e) });
   } finally {

@@ -5,9 +5,20 @@ export function getSemesterDates() {
 
   if (month >= 9 || month <= 1) {
     const startYear = month >= 9 ? year : year - 1;
-    return { start: `${startYear}-09-01`, end: `${startYear + 1}-01-31` };
+    return { start: `${startYear}-09-01`, end: `${startYear + 1}-02-28` };
   }
 
+  return { start: `${year}-02-01`, end: `${year}-06-30` };
+}
+
+export function getTermDates(term) {
+  const now = new Date();
+  const year = now.getFullYear();
+  if (term === 'fall') {
+    const startYear = year; // assume current year fall
+    return { start: `${startYear}-09-01`, end: `${startYear + 1}-02-28` };
+  }
+  // spring
   return { start: `${year}-02-01`, end: `${year}-06-30` };
 }
 

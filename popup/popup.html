@@ -17,11 +17,16 @@
           <input type="checkbox" id="chkSeparateByType" />
           <span>Separate by type</span>
         </label>
+        
       </div>
       <div class="buttons">
+        <div class="term-toggle">
+          <button id="btnFall" class="toggle active">Fall</button>
+          <button id="btnSpring" class="toggle">Spring</button>
+        </div>
         <button id="btnDownloadAll" class="primary">Download schedule</button>
       </div>
-      <pre id="status" class="status"></pre>
+      <div id="errorMsg" class="error" style="display:none"></div>
     </div>
     <script src="./popup.js" defer></script>
   </body>

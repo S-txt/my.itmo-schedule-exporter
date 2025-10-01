@@ -4,9 +4,9 @@
   "description": "Fetch schedule from my.itmo.ru and export to Calendars.",
   "version": "0.1.0",
   "icons": {
-    "16": "icons/my_itmo.ico",
-    "48": "icons/my_itmo.ico",
-    "128": "icons/my_itmo.ico"
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
   "permissions": [
     "activeTab",
@@ -21,9 +21,9 @@
     "default_title": "ITMO Schedule Export",
     "default_popup": "popup/popup.html",
     "default_icon": {
-      "16": "icons/my_itmo.ico",
-      "48": "icons/my_itmo.ico",
-      "128": "icons/my_itmo.ico"
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
     }
   },
   "background": {

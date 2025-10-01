@@ -5,7 +5,7 @@ body {
 }
 
 .container {
-  width: 320px;
+  width: 200px;
   padding: 12px;
 }
 
@@ -15,16 +15,21 @@ h1 {
 }
 
 .buttons {
-  display: block;
-  margin-bottom: 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 button {
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: 16px;
   cursor: pointer;
   border-radius: 6px;
   border: 1px solid transparent;
+  margin-bottom: 8px;
 }
 
 button.primary {
@@ -37,13 +42,10 @@ button.primary:disabled {
   cursor: default;
 }
 
-.status {
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  padding: 8px;
-  height: 140px;
-  overflow: auto;
-  font-size: 12px;
+.error {
+  margin-top: 8px;
+  color: #b00020;
+  font-size: 16px;
 }
 
 .notice {
@@ -51,19 +53,41 @@ button.primary:disabled {
   color: #6d4c00;
   border: 1px solid #ffecb5;
   padding: 8px;
-  font-size: 12px;
+  font-size: 16px;
   margin: 0 0 8px 0;
 }
 
 .controls {
-  margin: 0 0 8px 0;
+  margin: 0 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .checkbox {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 16px; /* ~30% larger */
+}
+
+.term-toggle {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.toggle {
+  background: #f0f4ff;
+  color: #1a5cff;
+  border: 1px solid #c7d3ff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+.toggle.active {
+  background: #1a5cff;
+  color: #fff;
 }
 
 

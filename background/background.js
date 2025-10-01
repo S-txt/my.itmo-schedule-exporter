@@ -1,4 +1,4 @@
-import { getSemesterDates } from "../utils/date-utils.js";
+import { getSemesterDates, getTermDates } from "../utils/date-utils.js";
 import { fetchPersonalSchedule } from "../utils/api-client.js";
 import { scheduleToICS } from "../utils/calendar-generator.js";
 import { partitionScheduleByType } from "../utils/partition-utils.js";
@@ -119,7 +119,8 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
           sendResponse({ ok: false, error: "Missing or expired token" });
           return;
         }
-        const { start, end } = getSemesterDates();
+        const { term } = request || {};
+        const { start, end } = term ? getTermDates(term) : getSemesterDates();
         const schedule = await fetchPersonalSchedule(token, start, end);
         await chrome.storage.local.set({ itmoSchedule: schedule, itmoScheduleWindow: { start, end } });
         sendResponse({ ok: true, start, end, count: Array.isArray(schedule?.data) ? schedule.data.length : 0 });

@@ -29,48 +29,53 @@ async function initHostGate() {
     status.style.display = "none";
   } else {
     notice.style.display = "none";
-    buttons.style.display = "grid";
+    buttons.style.display = "block";
     status.style.display = "block";
   }
 }
 
 document.addEventListener("DOMContentLoaded", initHostGate);
 
-document.getElementById("btnGetTokens").addEventListener("click", async () => {
-  setStatus("Reading tokens from my.itmo.ru ...");
-  const res = await sendMessage({ type: "GET_TOKENS" });
-  setStatus(res);
-});
+async function downloadFlow() {
+  const btn = document.getElementById("btnDownloadAll");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Please wait";
+  try {
+    setStatus("Reading tokens from my.itmo.ru ...");
+    const t = await sendMessage({ type: "GET_TOKENS" });
+    if (!t?.ok) throw new Error(t?.error || "Failed to get tokens");
 
-document.getElementById("btnGetSchedule").addEventListener("click", async () => {
-  setStatus("Fetching schedule ...");
-  const res = await sendMessage({ type: "GET_SCHEDULE" });
-  setStatus(res);
-});
+    setStatus("Fetching schedule ...");
+    const s = await sendMessage({ type: "GET_SCHEDULE" });
+    if (!s?.ok) throw new Error(s?.error || "Failed to fetch schedule");
 
-document.getElementById("btnGenerateIcal").addEventListener("click", async () => {
-  setStatus("Generating iCal ...");
-  const res = await sendMessage({ type: "GENERATE_ICAL" });
-  setStatus(res);
-});
+    setStatus("Generating iCal ...");
+    const g = await sendMessage({ type: "GENERATE_ICAL" });
+    if (!g?.ok) throw new Error(g?.error || "Failed to generate iCal");
 
-document.getElementById("btnDownloadIcal").addEventListener("click", async () => {
-  setStatus("Preparing download ...");
-  const res = await sendMessage({ type: "DOWNLOAD_ICAL" });
-  if (!res?.ok) {
-    setStatus(res);
-    return;
+    setStatus("Preparing download ...");
+    const d = await sendMessage({ type: "DOWNLOAD_ICAL" });
+    if (!d?.ok) throw new Error(d?.error || "Failed to prepare download");
+
+    const blob = new Blob([d.ics], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "itmo-schedule.ics";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setStatus({ ok: true, downloaded: true });
+  } catch (e) {
+    setStatus({ ok: false, error: String(e?.message || e) });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
   }
-  const blob = new Blob([res.ics], { type: "text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "itmo-schedule.ics";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  setStatus({ ok: true, downloaded: true });
-});
+}
+
+document.getElementById("btnDownloadAll").addEventListener("click", downloadFlow);
 
 

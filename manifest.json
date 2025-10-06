@@ -9,7 +9,6 @@
     "128": "icons/icon128.png"
   },
   "permissions": [
-    "activeTab",
     "storage",
     "scripting",
     "tabs"
@@ -38,7 +37,22 @@
       "js": [
         "content/content.js"
       ],
+      "css": [
+        "content/content.css"
+      ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "popup/popup.html",
+        "popup/popup.css",
+        "popup/popup.js"
+      ],
+      "matches": [
+        "https://my.itmo.ru/*"
+      ]
     }
   ]
 }

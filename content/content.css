@@ -1,0 +1,90 @@
+/* Download schedule button on the page */
+#itmo-extension-download-btn {
+  background: #fff;
+  color: #1743bd;
+  border: 1px solid #1743bd;
+  border-radius: 0.2rem;
+  -moz-box-sizing: border-box; /* For Firefox */
+  -webkit-box-sizing: border-box; /* For Safari and Chrome */
+  box-sizing: border-box; /* For IE and Opera */
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  min-width: 30px;
+  height: 30px;
+  margin-right: 8px;
+  box-sizing: border-box;
+}
+
+#itmo-extension-download-btn:hover {
+  background: #1743bd;
+  color: #fff;
+  border-color: #1743bd;
+}
+
+#itmo-extension-download-btn:active {
+  background: #1743bd;
+  border-color: #1743bd;
+  color: #fff;
+}
+
+#itmo-extension-download-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Loader spinner animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.itmo-extension-loader {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Dropdown menu */
+#itmo-extension-dropdown {
+  position: absolute;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 0.25rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
+  display: none;
+  min-width: 120px;
+  z-index: 100000;
+  margin-top: 2px;
+}
+
+#itmo-extension-dropdown.show {
+  display: block;
+}
+
+.itmo-extension-dropdown-item {
+  display: block;
+  padding: 0.5rem 1rem;
+  color: #212529;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.itmo-extension-dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+
+.itmo-extension-dropdown-item:active {
+  background-color: #e9ecef;
+}

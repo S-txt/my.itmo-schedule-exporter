@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ITMO Schedule Export",
   "description": "Fetch schedule from my.itmo.ru and export to Calendars.",
-  "version": "0.1.0",
+  "version": "0.5.1",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

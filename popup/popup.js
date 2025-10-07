@@ -89,7 +89,8 @@ async function downloadFlow() {
     } else {
       const d = await sendMessage({ type: "DOWNLOAD_ICAL_SEPARATED" });
       if (!d?.ok || !Array.isArray(d.files)) throw new Error(d?.error || "Failed to prepare separated files");
-      for (const file of d.files) {
+      for (let i = 0; i < d.files.length; i++) {
+        const file = d.files[i];
         const blob = new Blob([file.content], { type: "text/calendar;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -99,6 +100,10 @@ async function downloadFlow() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+        // Delay between downloads to prevent browser throttling
+        if (i < d.files.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       }
       console.log("[popup] Downloaded files:", d.files.map(f => f.name));
     }

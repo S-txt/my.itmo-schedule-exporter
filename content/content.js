@@ -156,66 +156,7 @@
         return;
       }
 
-      // Get tokens
-      const tokensResponse = await chrome.runtime.sendMessage({ type: "GET_TOKENS" });
-      if (!tokensResponse?.ok) {
-        return;
-      }
-
-      // Determine semester automatically
-      const term = getCurrentSemester();
-
-      // Get schedule
-      const scheduleResponse = await chrome.runtime.sendMessage({ type: "GET_SCHEDULE", term });
-      if (!scheduleResponse?.ok) {
-        return;
-      }
-
-      if (action === "single") {
-        // Single file
-        const icsResponse = await chrome.runtime.sendMessage({ type: "GENERATE_ICAL" });
-        if (!icsResponse?.ok) {
-          return;
-        }
-
-        const downloadResponse = await chrome.runtime.sendMessage({ type: "DOWNLOAD_ICAL" });
-        if (!downloadResponse?.ok) {
-          return;
-        }
-
-        const blob = new Blob([downloadResponse.ics], { type: "text/calendar;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "itmo-schedule.ics";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      } else if (action === "separated") {
-        // Separated by type
-        const icsResponse = await chrome.runtime.sendMessage({ type: "GENERATE_ICAL_SEPARATED" });
-        if (!icsResponse?.ok) {
-          return;
-        }
-
-        const downloadResponse = await chrome.runtime.sendMessage({ type: "DOWNLOAD_ICAL_SEPARATED" });
-        if (!downloadResponse?.ok || !Array.isArray(downloadResponse.files)) {
-          return;
-        }
-
-        for (const file of downloadResponse.files) {
-          const blob = new Blob([file.content], { type: "text/calendar;charset=utf-8" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = file.name;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-        }
-      }
+      await ItmoExport.exportSchedule({ term: getCurrentSemester(), separate: action === "separated" });
     } catch (error) {
       // Silently fail - don't show errors to users
       return;

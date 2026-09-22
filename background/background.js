@@ -11,7 +11,7 @@ async function getActiveTabId() {
 async function injectContentScript(tabId) {
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ["content/content.js"],
+    files: ["utils/export-flow.js", "content/content.js"],
     world: "ISOLATED",
   });
 }

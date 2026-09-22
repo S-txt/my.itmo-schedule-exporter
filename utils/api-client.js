@@ -13,7 +13,7 @@ export async function fetchPersonalSchedule(bearerToken, dateStart, dateEnd) {
           headers: {
             Authorization: bearerToken,
             Accept: "application/json, text/plain, */*",
-            "Accept-Language": "en",
+            "Accept-Language": "ru",
             Referer: "https://my.itmo.ru/schedule?date=" + dateStart,
             "X-Request-ID": crypto.randomUUID(),
             "Sec-Fetch-Dest": "empty",

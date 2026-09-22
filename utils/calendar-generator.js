@@ -19,36 +19,24 @@ export function scheduleToICS(scheduleJson) {
   const nowIso = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 
   const days = Array.isArray(scheduleJson?.data) ? scheduleJson.data : [];
-  const groups = new Map(); // key -> { subject, type, start, end, occurrences: [{date, lesson}], sample }
+  const groups = new Map(); // key -> { event, occurrences: [{date, lesson}], sample }
   for (const day of days) {
     const date = day?.date;
     const lessons = Array.isArray(day?.lessons) ? day.lessons : [];
     for (const lesson of lessons) {
-      const subject = firstNonEmpty([lesson.subject, lesson.subject_id, lesson.subject_name, lesson.title, lesson.name, lesson.discipline]) || "Lesson";
-      const type = (lesson.type || lesson.work_type) || "";
-      const start = String(lesson.time_start || "").trim();
-      const end = String(lesson.time_end || "").trim();
-      const key = `${subject}__${type}__${start}__${end}`;
-      if (!groups.has(key)) groups.set(key, { subject, type, start, end, occurrences: [], sample: lesson });
+      const event = renderLesson(lesson);
+      // Lessons form a series only if they look identical in the calendar,
+      // so no occurrence shows another lesson's place, teacher or link
+      const key = [event.start, event.end, event.summary, event.description, event.location, event.url].join("__");
+      if (!groups.has(key)) groups.set(key, { event, occurrences: [], sample: lesson });
       groups.get(key).occurrences.push({ date, lesson });
     }
   }
 
-  for (const [, group] of groups) {
-    const { subject, type, start, end, occurrences, sample } = group;
+  for (const [key, group] of groups) {
+    const { event, occurrences, sample } = group;
+    const { start, end, summary, description, location, url, category, colorHex } = event;
     occurrences.sort((a, b) => a.date.localeCompare(b.date));
-    const typeSuffix = type ? ` — ${String(type).trim()}` : "";
-    const summary = escapeText(`${subject}${typeSuffix}`);
-    const descriptionText = [
-      type ? `Тип: ${type}` : "",
-      sample.teacher_name ? `Преподаватель: ${sample.teacher_name}` : "",
-      sample.group ? `Группа: ${sample.group}` : "",
-      sample.format ? `Формат: ${sample.format}` : "",
-      sample.note ? `Заметка: ${sample.note}` : "",
-    ].filter(Boolean).join("\n");
-    const description = escapeText(descriptionText);
-    const location = escapeText(sample.building || sample.room || sample.format || "");
-    const { category, colorHex } = mapLessonTypeToCategoryAndColor(type);
 
     if (occurrences.length <= 1) {
       const { date } = occurrences[0];
@@ -63,6 +51,7 @@ export function scheduleToICS(scheduleJson) {
       lines.push(`SUMMARY:${summary}`);
       lines.push(`DESCRIPTION:${description}`);
       if (location) lines.push(`LOCATION:${location}`);
+      if (url) lines.push(`URL:${url}`);
       if (category) lines.push(`CATEGORIES:${escapeText(category)},ITMO`);
       if (colorHex) lines.push(`COLOR:${colorHex}`);
       lines.push("END:VEVENT");
@@ -79,7 +68,7 @@ export function scheduleToICS(scheduleJson) {
     const expectedDates = enumerateExpectedDates(firstDate, lastDate, bydaySet);
     const actualSet = new Set(occurrences.map(o => o.date));
     const missingDates = expectedDates.filter(d => !actualSet.has(d));
-    const uid = `recurr-${hashKey(`${subject}|${type}|${start}|${end}`)}@itmo.ru`;
+    const uid = `recurr-${hashKey(key)}@itmo.ru`;
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${uid}`);
     lines.push(`DTSTAMP:${nowIso}`);
@@ -88,6 +77,7 @@ export function scheduleToICS(scheduleJson) {
     lines.push(`SUMMARY:${summary}`);
     lines.push(`DESCRIPTION:${description}`);
     if (location) lines.push(`LOCATION:${location}`);
+    if (url) lines.push(`URL:${url}`);
     if (category) lines.push(`CATEGORIES:${escapeText(category)},ITMO`);
     if (colorHex) lines.push(`COLOR:${colorHex}`);
     lines.push(`RRULE:FREQ=WEEKLY;BYDAY=${byday};UNTIL=${until}`);
@@ -102,6 +92,36 @@ export function scheduleToICS(scheduleJson) {
   return lines.join("\n");
 }
 
+function renderLesson(lesson) {
+  const subject = firstNonEmpty([lesson.subject, lesson.subject_id, lesson.subject_name, lesson.title, lesson.name, lesson.discipline]) || "Lesson";
+  const type = (lesson.type || lesson.work_type) || "";
+  const typeSuffix = type ? ` — ${String(type).trim()}` : "";
+  const conference = findConference(lesson);
+  const descriptionText = [
+    conference.url ? `Ссылка: ${conference.url}` : "",
+    conference.password ? `Пароль: ${conference.password}` : "",
+    conference.info ? `Подключение: ${conference.info}` : "",
+    type ? `Тип: ${type}` : "",
+    lesson.teacher_name ? `Преподаватель: ${lesson.teacher_name}` : "",
+    lesson.group ? `Группа: ${lesson.group}` : "",
+    lesson.format ? `Формат: ${lesson.format}` : "",
+    lesson.room ? `Аудитория: ${lesson.room}` : "",
+    lesson.note ? `Заметка: ${lesson.note}` : "",
+  ].filter(Boolean).join("\n");
+  const { category, colorHex } = mapLessonTypeToCategoryAndColor(type);
+  return {
+    start: String(lesson.time_start || "").trim(),
+    end: String(lesson.time_end || "").trim(),
+    summary: escapeText(`${subject}${typeSuffix}`),
+    description: escapeText(descriptionText),
+    // A physical place wins; the conference link becomes the location only for lessons without one
+    location: escapeText(lesson.building || lesson.room || conference.url || lesson.format || ""),
+    url: conference.url,
+    category,
+    colorHex,
+  };
+}
+
 function cryptoRandom() {
   try {
     const arr = new Uint32Array(2);
@@ -110,6 +130,19 @@ function cryptoRandom() {
   } catch (_e) {
     return String(Math.floor(Math.random() * 1e12));
   }
+}
+
+// Any conference link (ktalk, zoom, ...): zoom_url first, then a URL written in zoom_info or note
+function findConference(lesson) {
+  const url = [lesson?.zoom_url, lesson?.zoom_info, lesson?.note]
+    .map((v) => String(v || "").match(/https?:\/\/[^\s,;]+/i)?.[0])
+    .find(Boolean) || "";
+  const info = String(lesson?.zoom_info || "").trim();
+  return {
+    url,
+    password: url ? String(lesson.zoom_password || "").trim() : "",
+    info: url && info !== url ? info : "",
+  };
 }
 
 function firstNonEmpty(values) {
@@ -158,11 +191,12 @@ function mapLessonTypeToCategoryAndColor(typeRaw) {
   // Russian aliases → English category + color aligned with ITMO palette
   if (!t) return { category: "Lesson", colorHex: "#1a5cff" };
   if (/(лекц|lecture)/.test(t)) return { category: "Lecture", colorHex: "#1a5cff" };
-  if (/(практ|seminar|practice)/.test(t)) return { category: "Practice", colorHex: "#00b894" };
+  if (/(практ|seminar|practic)/.test(t)) return { category: "Practice", colorHex: "#00b894" };
   if (/(лаб|labor)/.test(t)) return { category: "Lab", colorHex: "#6c5ce7" };
-  if (/(экзам|exam)/.test(t)) return { category: "Exam", colorHex: "#e74c3c" };
-  if (/(зач|test|credit)/.test(t)) return { category: "Test", colorHex: "#f39c12" };
+  // Before exam: "Консультация к экзамену" is a consultation, not an exam
   if (/(консульт|consult)/.test(t)) return { category: "Consultation", colorHex: "#10b981" };
+  if (/(экзам|exam)/.test(t)) return { category: "Exam", colorHex: "#e74c3c" };
+  if (/(зач|test|credit|pass)/.test(t)) return { category: "Test", colorHex: "#f39c12" };
   return { category: "Lesson", colorHex: "#2d3436" };
 }
 

@@ -9,14 +9,6 @@ function setError(message) {
   el.textContent = String(message);
 }
 
-async function sendMessage(request) {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(request, (response) => {
-      resolve(response);
-    });
-  });
-}
-
 async function getActiveTab() {
   const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   return tabs && tabs.length ? tabs[0] : null;
@@ -60,53 +52,7 @@ async function downloadFlow() {
   btn.textContent = "Please wait";
   try {
     setError("");
-    console.log("[popup] Reading tokens from my.itmo.ru ...");
-    const t = await sendMessage({ type: "GET_TOKENS" });
-    if (!t?.ok) throw new Error(t?.error || "Failed to get tokens");
-
-    console.log("[popup] Fetching schedule ...", { term });
-    const s = await sendMessage({ type: "GET_SCHEDULE", term });
-    if (!s?.ok) throw new Error(s?.error || "Failed to fetch schedule");
-
-    console.log("[popup] Generating iCal ...", { separate });
-    const g = await sendMessage({ type: separate ? "GENERATE_ICAL_SEPARATED" : "GENERATE_ICAL" });
-    if (!g?.ok) throw new Error(g?.error || "Failed to generate iCal");
-
-    console.log("[popup] Preparing download ...");
-    if (!separate) {
-      const d = await sendMessage({ type: "DOWNLOAD_ICAL" });
-      if (!d?.ok) throw new Error(d?.error || "Failed to prepare download");
-      const blob = new Blob([d.ics], { type: "text/calendar;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "itmo-schedule.ics";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      console.log("[popup] Downloaded single file");
-    } else {
-      const d = await sendMessage({ type: "DOWNLOAD_ICAL_SEPARATED" });
-      if (!d?.ok || !Array.isArray(d.files)) throw new Error(d?.error || "Failed to prepare separated files");
-      for (let i = 0; i < d.files.length; i++) {
-        const file = d.files[i];
-        const blob = new Blob([file.content], { type: "text/calendar;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = file.name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        // Delay between downloads to prevent browser throttling
-        if (i < d.files.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-      console.log("[popup] Downloaded files:", d.files.map(f => f.name));
-    }
+    await ItmoExport.exportSchedule({ term, separate });
   } catch (e) {
     console.error("[popup] Error:", e);
     setError(String(e?.message || e));
